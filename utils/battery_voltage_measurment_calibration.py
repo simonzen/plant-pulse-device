@@ -12,4 +12,4 @@ print(raw)
 time.sleep(1)
 
 v_ref = measured_voltage * 4095 / raw
-print("v_ref=", v_ref)
+print(f"v_ref={v_ref}")

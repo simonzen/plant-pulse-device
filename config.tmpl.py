@@ -5,6 +5,7 @@ config = {
             "password": "",
         },
         "url": "",
+        "sleep_time": 60*60,
     },
     "soil": {
         "moisture": {

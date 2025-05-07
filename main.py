@@ -6,23 +6,24 @@ import time
 from config import config
 
 
-def connect_wifi(ssid, password):
+def connect_wifi(ssid, password, attempts=10, delay=1):
     wlan = network.WLAN(network.STA_IF)
     wlan.active(True)
     if not wlan.isconnected():
-        print('Connecting to network...')
+        print('Connecting to Wi-Fi...')
         wlan.connect(ssid, password)
-        timeout = 10
-        while not wlan.isconnected() and timeout > 0:
-            print(".", end="")
-            time.sleep(1)
-            timeout -= 1
-    if wlan.isconnected():
-        print('\nConnected')
-        return True
-    else:
-        print('\nFailed to connect to Wi-Fi')
-        return False
+        while not wlan.isconnected() and attempts > 0:
+            print('.', end='')
+            time.sleep(delay)
+            attempts -= 1
+    return wlan if wlan.isconnected() else None
+
+
+def ensure_wifi_connection(wlan):
+    if not wlan.isconnected():
+        print('\nWi-Fi lost. Reconnecting...')
+        return connect_wifi(config["network"]["wifi"]["ssid"], config["network"]["wifi"]["password"])
+    return wlan
 
 
 def send_post(url, data):
@@ -30,7 +31,7 @@ def send_post(url, data):
         response = urequests.post(url, json=data)
         response.close()
     except Exception as e:
-        print('POST request failed:', e)
+        print('POST failed:', e)
 
 
 def battery_charge_level():
@@ -47,8 +48,6 @@ def read_moisture_percent():
     raw = max(WET_VALUE, min(raw, DRY_VALUE))
     return int((DRY_VALUE - raw) * 100 / (DRY_VALUE - WET_VALUE))
 
-
-POST_URL = config["network"]["url"]
 
 DRY_VALUE = config["soil"]["moisture"]["max_value"]
 WET_VALUE = config["soil"]["moisture"]["min_value"]
@@ -67,8 +66,14 @@ battery_adc = ADC(Pin(1))
 battery_adc.atten(ADC.ATTN_11DB)
 battery_adc.width(ADC.WIDTH_12BIT)
 
-if connect_wifi(config["network"]["wifi"]["ssid"], config["network"]["wifi"]["password"]):
-    while True:
+POST_URL = config["network"]["url"]
+SLEEP_TIME = config["network"]["sleep_time"]
+wlan = connect_wifi(config["network"]["wifi"]["ssid"], config["network"]["wifi"]["password"])
+
+while True:
+    wlan = ensure_wifi_connection(wlan)
+
+    if wlan and wlan.isconnected():
         data = {
             "data": {
                 "soil": {
@@ -80,4 +85,6 @@ if connect_wifi(config["network"]["wifi"]["ssid"], config["network"]["wifi"]["pa
             }
         }
         send_post(POST_URL, data)
-        time.sleep(1)
+    else:
+        print("Skipping send, no Wi-Fi")
+    time.sleep(SLEEP_TIME)
