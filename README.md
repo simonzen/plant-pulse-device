@@ -30,7 +30,7 @@ The HW-390 capacitive soil moisture sensor is used to measure the moisture level
 
 #### Calibration Process
 1. Connect the sensor to ESP32-C3 according to the scheme.
-2. Run the script `path/to/script.py`.
+2. Run the script `utils/soild_moisture_detector_calibration.py`.
 3. Measure the ADC value:
     - In dry air (sensor exposed to air)
     - Submerged in a glass of water (sensor fully wet)
@@ -53,24 +53,14 @@ The ESP32-C3 reads battery voltage through a resistive voltage divider. Because 
 
 #### Calibration Process
 1. Ensure the battery is connected through the voltage divider (using `R1` and `R2`).
-2. Measure the actual voltage at the **ADC pin** using a multimeter.  
+2. Measure the actual voltage at the **ADC pin 1** using a multimeter.  
    For example: `1.97 V`
-3. In parallel, read the raw ADC value in MicroPython:
-   ```python
-   raw = adc.read()
-   print(raw)
-   # Example: 2763
-   ```
-4. Calculate the actual reference voltage used by the ADC:
-   ```python
-   v_ref = measured_voltage * 4095 / raw
-   # v_ref = 1.97 * 4095 / 2763 ≈ 2.92
-   ```
-5. Update `config.py`:
+3. Run the script `utils/battery_voltage_measurment_calibration.py` with `measured_voltage` provided.
+4. Update `config.py`:
    - `v_ref`: calculated value (e.g. 2.92)
-   - `r1`, `r2`: resistor values from your voltage divider
-   - `v_min`: voltage that should be considered 0% battery (e.g. 3.0 V)
-   - `v_max`: voltage that represents 100% battery (e.g. 4.2 V)
+   - `r1`, `r2`: resistor values from your voltage divider (default `100000`)
+   - `v_min`: voltage that should be considered 0% battery (default `3.0`)
+   - `v_max`: voltage that represents 100% battery (default `4.2`)
 
 #### Notes
 - This calibration only needs to be done once per device or hardware revision.
