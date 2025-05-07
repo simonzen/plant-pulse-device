@@ -7,72 +7,89 @@
 - [18650 battery holder](https://www.mouser.com/datasheet/2/1398/Soldered_101619_holder_for_18650_lithium_battery-3532573.pdf) — holder for the battery
 - [TYPE C 5V 1A 18650 TP4056 with protection](https://support.envistiamall.com/kb/tp4056-dw01a-microusb-5v-1a-18650-lithium-battery-dual-function-charger-board-with-protection-module/) — Lithium Battery Dual Function Charger Board with Protection Module
 
-
 ## Prerequisites
 - Install ESP32-C3 USB driver if needed: [macOS CH340 driver](https://github.com/adrianmihalko/ch340g-ch34g-ch34x-mac-os-x-driver)
 - Flash MicroPython firmware on ESP32-C3: [official MicroPython installation guide](https://micropython.org/download/ESP32_GENERIC_C3/)
 
-## Config
-This repository contains a **configuration template** (`config.py`), which must be uploaded to the ESP32 device and filled with your calibration values.
+---
 
-Example: [config.py](./config.tmpl.py)
+## Configuration
 
-You must replace the values with actual measurements based on calibration.
+This repository contains a configuration template: [`config.tmpl.py`](./config.tmpl.py).  
+You must create a file `config.py` based on this template and upload it to the device.
 
-## Wiring
-The `scheme.fzz` file included in the repository shows the correct wiring for all components.  
-You can open it using Fritzing software.
+### Configuration Fields
+
+```python
+config = {
+    "network": {
+        "wifi": {
+            "ssid": "",         # Your Wi-Fi SSID
+            "password": "",     # Your Wi-Fi password
+        },
+        "url": "",              # Server endpoint for POST requests
+        "sleep_time": 60*60,    # Delay between measurements (in seconds)
+    },
+    "soil": {
+        "moisture": {
+            "max_value": 0,     # ADC value for completely dry soil
+            "min_value": 0,     # ADC value when sensor fully wet (e.g. water cup)
+        }
+    },
+    "battery": {
+        "r1": 100000,           # Top resistor in voltage divider (Ohms)
+        "r2": 100000,           # Bottom resistor in voltage divider (Ohms)
+        "v_min": 3.0,           # Battery voltage representing 0% charge
+        "v_max": 4.2,           # Battery voltage representing 100% charge
+        "v_ref": 0,             # Calibrated ADC reference voltage (see below)
+    },
+}
+```
+
+---
 
 ## Sensor Calibration
 
 ### Moisture Sensor
-The HW-390 capacitive soil moisture sensor is used to measure the moisture level of soil. It provides analog output proportional to the soil moisture.
 
-#### Calibration Process
-1. Connect the sensor to ESP32-C3 according to the scheme.
-2. Run the script `path/to/script.py`.
-3. Measure the ADC value:
-    - In dry air (sensor exposed to air)
-    - Submerged in a glass of water (sensor fully wet)
-4. Update `config.py`:
-    - `max_value` should correspond to the dry measurement.
-    - `min_value` should correspond to the wet measurement.
+The HW-390 capacitive soil moisture sensor provides analog output proportional to soil moisture.
 
-#### Troubleshooting
-If the sensor provides unstable or unrealistic readings:
-- Make sure VCC is connected to **3.3V**, not 5V.
-- Double-check your wiring and ensure proper ground connection.
-- Inspect the sensor for visible physical damage.
-- You can also refer to this video tutorial: [YouTube: Soil Moisture Sensor Calibration](https://www.youtube.com/watch?v=IGP38bz-K48).
+#### Steps
+1. Connect the sensor to ESP32-C3 according to `scheme.fzz`
+2. Run `utils/soil_moisture_detector_calibration.py`
+3. Measure and record ADC values:
+   - `dry`: sensor in air
+   - `wet`: sensor submerged in water
+4. Update `config["soil"]["moisture"]` with `max_value = dry`, `min_value = wet`
 
-If the sensor still does not perform properly, it might be defective, and replacement should be considered.
+### Battery Voltage Calibration
 
-### Battery Voltage Measurement
+ESP32 reads battery voltage using a voltage divider. Because ADC reference (v_ref) is imprecise, manual calibration improves accuracy.
 
-The ESP32-C3 reads battery voltage through a resistive voltage divider. Because internal ADC reference voltage (V_ref) is not exact, calibration is required for accurate readings.
+#### Steps
+1. Connect voltage divider to ADC (Pin 1)
+2. Use multimeter to measure actual voltage at ADC pin
+3. Run `utils/battery_voltage_measurement_calibration.py` with `measured_voltage`
+4. Update `config["battery"]["v_ref"]` with calculated result
 
-#### Calibration Process
-1. Ensure the battery is connected through the voltage divider (using `R1` and `R2`).
-2. Measure the actual voltage at the **ADC pin** using a multimeter.  
-   For example: `1.97 V`
-3. In parallel, read the raw ADC value in MicroPython:
-   ```python
-   raw = adc.read()
-   print(raw)
-   # Example: 2763
-   ```
-4. Calculate the actual reference voltage used by the ADC:
-   ```python
-   v_ref = measured_voltage * 4095 / raw
-   # v_ref = 1.97 * 4095 / 2763 ≈ 2.92
-   ```
-5. Update `config.py`:
-   - `v_ref`: calculated value (e.g. 2.92)
-   - `r1`, `r2`: resistor values from your voltage divider
-   - `v_min`: voltage that should be considered 0% battery (e.g. 3.0 V)
-   - `v_max`: voltage that represents 100% battery (e.g. 4.2 V)
+---
 
-#### Notes
-- This calibration only needs to be done once per device or hardware revision.
-- Using precise resistors and reliable multimeter improves accuracy.
-- ESP32-C3 ADC accuracy is limited; expect some fluctuation.
+## Wiring
+
+The file [`scheme.fzz`](./scheme.fzz) provides the full wiring diagram.  
+Open it in [Fritzing](https://fritzing.org/download/) to explore the connections between:
+
+- ESP32-C3
+- Moisture sensor
+- Battery
+- Voltage divider
+- TP4056 charging module
+
+---
+
+## Features
+
+- Calibrated soil moisture readings
+- Battery charge level (in %)
+- Reliable Wi-Fi reconnect support
+- Data transmission to server endpoint via HTTP POST
