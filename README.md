@@ -64,8 +64,35 @@ The file [`scheme.fzz`](./scheme.fzz) contains the complete wiring diagram. Open
 - battery and voltage divider
 - TP4056 charging module
 
+## Home Assistant Integration
+
+The device can report its readings directly to Home Assistant using the
+`ESPHome` integration.  Create an ESPHome node for the ESP32‑C3 and include a
+sensor definition similar to the example below.  Replace the calibration values
+`4000` and `1500` with the results from the calibration scripts.
+
+```yaml
+sensor:
+  - platform: adc
+    pin: GPIO0
+    name: "Soil Moisture"
+    unit_of_measurement: "%"
+    update_interval: 5s
+    attenuation: 11db
+    filters:
+      - calibrate_linear:
+          - 4000 -> 0     # dry
+          - 1500 -> 100   # wet
+      - lambda: return fmaxf(0.0f, fminf(x, 100.0f));
+    accuracy_decimals: 0
+```
+
+After uploading the configuration, Home Assistant will automatically discover
+the sensor and display the moisture level.
+
 ## Features
 - Calibrated soil moisture readings
 - Battery charge level as a percentage
 - Automatic Wi‑Fi reconnection
 - Data transmission via HTTP POST to your server
+- Home Assistant integration using an ESPHome manifest
